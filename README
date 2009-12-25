@@ -1,0 +1,33 @@
+    TokyoTyrant Patch to support "list" method like memcache style;
+   
+    + Usage +
+
+    telnet style:
+    telnet localhost 1978
+    Trying 127.0.0.1...
+    Connected to localhost.localdomain.
+    Escape character is '^]'.
+    set kw2 1 1 3
+    123
+    STORED
+    list
+    LIST 9
+    kw
+    kw2
+    END
+
+    Using memcache.class.php:
+    <?php
+    include "memcache.class.php";
+    $hosts = array('127.0.0.1:1978');
+    $mc = &new MemCachedClient($hosts);
+    var_dump($mc->listkeys());
+    ?>
+
+
+
+    + Install +
+
+~/download@aragorn   $ tar -xzf tokyotyrant-1.1.37.tar.gz 
+~/download@aragorn   $ patch -p0 < mc_list.patch 
+patching file tokyotyrant-1.1.37/ttserver.c

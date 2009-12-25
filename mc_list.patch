@@ -1,0 +1,69 @@
+diff -Naur tokyotyrant-1.1.37/ttserver.c tokyotyrant-1.1.37.new/ttserver.c
+--- tokyotyrant-1.1.37/ttserver.c	2009-10-27 14:08:50.000000000 +0800
++++ tokyotyrant-1.1.37.new/ttserver.c	2009-12-25 21:23:35.000000000 +0800
+@@ -183,6 +183,7 @@
+ static void do_mc_set(TTSOCK *sock, TASKARG *arg, TTREQ *req, char **tokens, int tnum);
+ static void do_mc_add(TTSOCK *sock, TASKARG *arg, TTREQ *req, char **tokens, int tnum);
+ static void do_mc_replace(TTSOCK *sock, TASKARG *arg, TTREQ *req, char **tokens, int tnum);
++static void do_mc_list(TTSOCK *sock, TASKARG *arg, TTREQ *req, char **tokens, int tnum);
+ static void do_mc_get(TTSOCK *sock, TASKARG *arg, TTREQ *req, char **tokens, int tnum);
+ static void do_mc_delete(TTSOCK *sock, TASKARG *arg, TTREQ *req, char **tokens, int tnum);
+ static void do_mc_incr(TTSOCK *sock, TASKARG *arg, TTREQ *req, char **tokens, int tnum);
+@@ -999,6 +1000,8 @@
+           do_mc_add(sock, arg, req, tokens, tnum);
+         } else if(!strcmp(cmd, "replace")){
+           do_mc_replace(sock, arg, req, tokens, tnum);
++        } else if(!strcmp(cmd,"list")){
++          do_mc_list(sock,arg,req,tokens,tnum);
+         } else if(!strcmp(cmd, "get") || !strcmp(cmd, "gets")){
+           do_mc_get(sock, arg, req, tokens, tnum);
+         } else if(!strcmp(cmd, "delete")){
+@@ -2482,6 +2485,48 @@
+   pthread_cleanup_pop(1);
+ }
+ 
++/* handle the memcached list command */
++static void do_mc_list(TTSOCK *sock, TASKARG *arg, TTREQ *req, char **tokens, int tnum){
++  ttservlog(g_serv, TTLOGDEBUG, "doing mc_list command");
++  uint64_t mask = arg->mask;
++  TCADB *adb = arg->adb;
++  if(tnum < 1){
++    ttsockprintf(sock, "CLIENT_ERROR error\r\n");
++    return;
++  }
++    TCXSTR *xstr = tcxstrnew();
++    TCXSTR * head = tcxstrnew();
++  pthread_cleanup_push((void (*)(void *))tcxstrdel, xstr);
++  pthread_cleanup_push((void (*)(void *))tcxstrdel, head);
++
++    tcadbiterinit(adb);
++    char * key;
++    int list_size;
++    while((key=tcadbiternext2(adb))!=NULL){
++      tcxstrcat(xstr, key, strlen(key));
++      tcxstrcat(xstr,"\r\n",2);
++    }
++    list_size=tcxstrsize(xstr);
++    tcxstrprintf(head,"LIST %d\r\n",list_size);
++    tcxstrcat(xstr, "END\r\n",5);
++
++  if(ttsocksend(sock, tcxstrptr(head), tcxstrsize(head))){
++    req->keep = true;
++  } else {
++    ttservlog(g_serv, TTLOGINFO, "do_mc_list: response failed");
++  pthread_cleanup_pop(1);
++  pthread_cleanup_pop(1);
++    return ;
++  }
++  if(ttsocksend(sock,tcxstrptr(xstr),tcxstrsize(xstr))){
++      req->keep=true;
++  }
++  else{
++    ttservlog(g_serv, TTLOGINFO, "do_mc_list: response failed");
++  }
++  pthread_cleanup_pop(1);
++  pthread_cleanup_pop(1);
++}
+ 
+ /* handle the memcached get command */
+ static void do_mc_get(TTSOCK *sock, TASKARG *arg, TTREQ *req, char **tokens, int tnum){
